@@ -46,7 +46,7 @@ private:
 template <typename T>
 void Stack<T>::PushBack(const T& value) {
     if (size == 0) {
-        arr = new T;
+        arr = new T[1];
         size = 1;
         arr[0] = value;
         allocSize = 1;
@@ -56,15 +56,14 @@ void Stack<T>::PushBack(const T& value) {
         allocSize *= 2;
         T *tmp = new T[allocSize];
         for (int i = 0; i < size; ++i) tmp[i] = arr[i];
-        delete arr;
+        delete[] arr;
         arr = tmp;
         arr[size] = value;
         ++size;
         return;
     }
     if (size < allocSize) {
-        arr[size] = value;
-        ++size;
+        arr[size++] = value;
         return;
     }
     
@@ -72,7 +71,7 @@ void Stack<T>::PushBack(const T& value) {
 
 template <typename T>
 void Stack<T>::Clear() {
-    delete arr;
+    delete[] arr;
     arr = NULL;
     size = 0;
     allocSize = 0;
@@ -97,7 +96,7 @@ void Stack<T>::Transfer(Stack<T> &anotherStack) {
 template <typename T>
 Stack<T>::~Stack() {
     if (arr != NULL) {
-        delete arr;
+        delete[] arr;
     }
 }
 
@@ -184,7 +183,7 @@ void testQueue() {
 }
 
 int main() {
-    testQueue();
-    // run(std::cin, std::cout);
+    // testQueue();
+    run(std::cin, std::cout);
     return 0;
 }
