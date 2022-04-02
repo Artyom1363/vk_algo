@@ -49,7 +49,7 @@ public:
     T ExtractMin();
     bool IsEmpty();
     void UpdateProcess();
-    const T& PeekMin();
+    T& PeekMin();
     void SiftDown(int ind);
 
 private:
@@ -57,8 +57,6 @@ private:
     T* arr;
     Compare cmp;
 };
-
-
 
 template<class T, class Compare>
 Heap<T, Compare>::Heap(T* array, int sizeArr, Compare comp) {
@@ -105,19 +103,7 @@ bool Heap<T, Compare>::IsEmpty() {
 }
 
 template <class T, class Compare>
-void Heap<T, Compare>::UpdateProcess() {
-    assert (!IsEmpty());
-    arr[0].UpdateAfterWork();
-    if (arr[0].IsDone()) {
-        ExtractMin();
-    } else {
-        std::swap(arr[0], arr[size - 1]);
-        SiftDown(0);
-    }
-}
-
-template <class T, class Compare>
-const T& Heap<T, Compare>::PeekMin() {
+T& Heap<T, Compare>::PeekMin() {
     assert (!IsEmpty());
     return arr[0];
 }
@@ -137,7 +123,7 @@ void run(std::istream &input, std::ostream &output) {
     Heap <Process> myHeap(processes, n);
     int count = 0;
     while (!myHeap.IsEmpty()) {
-        Process last = myHeap.PeekMin();
+        Process& last = myHeap.PeekMin();
         last.UpdateAfterWork();
         if (last.IsDone()) {
             myHeap.ExtractMin();
