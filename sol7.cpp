@@ -28,15 +28,18 @@
 
 
 template <class T>
-struct dataLaunch{
-    dataLaunch() : array(NULL), size(0) {}
-    dataLaunch(T* initArray, int initSize) : array(initArray), size(initSize) {}
+struct dataLaunch {
+    dataLaunch() : array(NULL), size(0), bitNumber(0) {}
+    dataLaunch(T* initArray, int initSize, int gotBitNumber) : array(initArray), 
+                                                               size(initSize), 
+                                                               bitNumber(gotBitNumber){}
     T* array;
     int size;
+    int bitNumber;
 };
 
 template <class T>
-class Stack{
+class Stack {
 public:
     Stack() : size(0), allocSize(0), array(NULL) {}
     ~Stack();
@@ -72,6 +75,7 @@ void Stack<T>::Push(T& value) {
         array[size++] = value;
     }
 }
+
 template <class T>
 T Stack<T>::Pop() {
     assert(!IsEmpty());
@@ -85,53 +89,52 @@ Stack<T>::~Stack() {
     }
 };
 
-template<class Comp>
-unsigned long long getMid(unsigned long long* a, int i1, int i2, int i3, Comp comp) {
-    unsigned long long* array = new unsigned long long[3];
-    array[0] = a[i1];
-    array[1] = a[i2];
-    array[2] = a[i3];
-    int indexes[3] = {i1, i2, i3};
-    for (int i = 1; i < 3; ++i) {
-        for (int j = i; j > 0 && comp(array[j - 1], array[j]); --j) {
-            std::swap(array[j], array[j - 1]);
-            std::swap(indexes[j], indexes[j - 1]);
-        }
-    }
-    delete[] array;
-    return indexes[1];
-}
+template <class T>
+class SpecificComp {
+public:
+    SpecificComp(int gotBitNumber) : bitNumber(gotBitNumber) {}
 
-template<class Comp>
-int partition(unsigned long long* array, int size, Comp comp) {
+    bool operator()(const T& l) {
+        T one = 1;
+        return (l & (one << bitNumber)) == 0;
+    }
+
+private:
+    int bitNumber;
+};
+
+
+template<class T, class Comp>
+int binaryPartition(T* array, int size, Comp comp) {
     if (size < 1) {
         return 0;
     }
-    int ind = getMid(array, 0, size / 2, size - 1, comp);
-    std::swap(array[ind], array[size - 1]);
     int i = 0;
-    for (int j = 0; j < size - 1; ++j) {
-        if (comp(array[j], array[size - 1])) {
+    for (int j = 0; j < size; ++j) {
+        if (comp(array[j])) {
             std::swap(array[j], array[i++]);
         }
     }
-    std::swap(array[size - 1], array[i]);
     return i;
 }
 
-void quickSort(unsigned long long* array, int size) {
-    Stack <dataLaunch <unsigned long long> > launches;
-    dataLaunch <unsigned long long> launch(array, size);
+template <class T>
+void quickSort(T* array, int size, int maxBit) {
+    Stack <dataLaunch <T> > launches;
+    dataLaunch <T> launch(array, size, maxBit);
     launches.Push(launch);
     while (!launches.IsEmpty()) {
-        dataLaunch <unsigned long long> launch = launches.Pop();
-        int pivotInd = partition(launch.array, launch.size, [](unsigned long long f1, unsigned long long f2) { return f1 < f2; });
+        dataLaunch <T> launch = launches.Pop();
+        int bitNumber = launch.bitNumber;
+        if (bitNumber < 0) continue;
+        SpecificComp <T> comp(bitNumber);
+        int pivotInd = binaryPartition(launch.array, launch.size, comp);
         if (pivotInd > 1) {
-            dataLaunch <unsigned long long> newLaunch(launch.array, pivotInd);
+            dataLaunch <T> newLaunch(launch.array, pivotInd, bitNumber - 1);
             launches.Push(newLaunch);
         }
         if (pivotInd < launch.size) {
-            dataLaunch <unsigned long long> newLaunch(launch.array + pivotInd + 1, launch.size - (pivotInd + 1));
+            dataLaunch <T> newLaunch(launch.array + pivotInd, launch.size - (pivotInd), bitNumber - 1);
             launches.Push(newLaunch);
         }
     }
@@ -142,7 +145,7 @@ void run(std::istream &input, std::ostream &output) {
     input >> n; 
     unsigned long long* a = new unsigned long long[n];
     for (int i = 0; i < n; ++i) input >> a[i];
-    quickSort(a, n);
+    quickSort(a, n, 63);
     for (int i = 0; i < n; ++i) output << a[i] << " ";
     delete[] a;
 }
@@ -156,6 +159,49 @@ void test() {
         run(input, output);
         assert(output.str() == "4 7 1000000 "); 
     }
+    {   
+        std::stringstream input;
+        std::stringstream output;
+        input << "5 5 4 3 2 1";
+        run(input, output);
+        assert(output.str() == "1 2 3 4 5 "); 
+    }
+    {   
+        std::stringstream input;
+        std::stringstream output;
+        input << "15 15 14 13 12 11 10 9 8 7 6 5 4 3 2 1";
+        run(input, output);
+        assert(output.str() == "1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 "); 
+    }
+    {
+        std::stringstream input;
+        std::stringstream output;
+        input << "5 18446744073709551615 18446744073709551614 18446744073709551613 1 2";
+        run(input, output);
+        assert(output.str() == "1 2 18446744073709551613 18446744073709551614 18446744073709551615 "); 
+    }
+    {
+        std::stringstream input;
+        std::stringstream output;
+        input << "6 18446744073709551615 1 1 0 2 18446744073709551615";
+        run(input, output);
+        assert(output.str() == "0 1 1 2 18446744073709551615 18446744073709551615 "); 
+    }
+    {
+        std::stringstream input;
+        std::stringstream output;
+        input << "6 5 4 3 2 1 9";
+        run(input, output);
+        assert(output.str() == "1 2 3 4 5 9 "); 
+    }
+    {
+        std::stringstream input;
+        std::stringstream output;
+        input << "3 18446744073709551615 9223372036854775807 9223372036854775808";
+        run(input, output);
+        assert(output.str() == "9223372036854775807 9223372036854775808 18446744073709551615 "); 
+    }
+
 }
 
 int main() {
