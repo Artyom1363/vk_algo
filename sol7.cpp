@@ -27,6 +27,64 @@
 #include <math.h>
 
 
+template <class T>
+struct dataLaunch{
+    dataLaunch() : array(NULL), size(0) {}
+    dataLaunch(T* initArray, int initSize) : array(initArray), size(initSize) {}
+    T* array;
+    int size;
+};
+
+template <class T>
+class Stack{
+public:
+    Stack() : size(0), allocSize(0), array(NULL) {}
+    ~Stack();
+    bool IsEmpty() {return size == 0;}
+    void Push(T& value);
+    T Pop();
+
+private:
+    int size;
+    int allocSize;
+    T* array;
+};
+
+template <class T>
+void Stack<T>::Push(T& value) {
+    if (allocSize == 0) {
+        array = new T[1];
+        allocSize = 1;
+        size = 1;
+        array[0] = value;
+        return;
+    }
+    if (allocSize == size) {
+        allocSize *= 2;
+        T* arrayTmp = new T[allocSize];
+        for (int i = 0; i < size; ++i) arrayTmp[i] = array[i];
+        delete[] array;
+        arrayTmp[size++] = value;
+        array = arrayTmp;
+        return;
+    }
+    if (size < allocSize) {
+        array[size++] = value;
+    }
+}
+template <class T>
+T Stack<T>::Pop() {
+    assert(!IsEmpty());
+    return array[--size];
+}
+
+template <class T>
+Stack<T>::~Stack() {
+    if (array != NULL) {
+        delete[] array;
+    }
+};
+
 template<class Comp>
 unsigned long long getMid(unsigned long long* a, int i1, int i2, int i3, Comp comp) {
     unsigned long long* array = new unsigned long long[3];
@@ -50,7 +108,6 @@ int partition(unsigned long long* array, int size, Comp comp) {
         return 0;
     }
     int ind = getMid(array, 0, size / 2, size - 1, comp);
-    // std::cout << "ind: " << ind << std::endl;
     std::swap(array[ind], array[size - 1]);
     int i = 0;
     for (int j = 0; j < size - 1; ++j) {
@@ -62,15 +119,21 @@ int partition(unsigned long long* array, int size, Comp comp) {
     return i;
 }
 
-void queueSort(unsigned long long* array, int size) {
-    int pivotInd = partition(array, size, [](unsigned long long f1, unsigned long long f2) {
-        return f1 < f2;
-    });
-    if (pivotInd > 1) {
-        queueSort(array, pivotInd);
-    }
-    if (pivotInd < size) {
-        queueSort(array + pivotInd + 1, size - (pivotInd + 1));
+void quickSort(unsigned long long* array, int size) {
+    Stack <dataLaunch <unsigned long long> > launches;
+    dataLaunch <unsigned long long> launch(array, size);
+    launches.Push(launch);
+    while (!launches.IsEmpty()) {
+        dataLaunch <unsigned long long> launch = launches.Pop();
+        int pivotInd = partition(launch.array, launch.size, [](unsigned long long f1, unsigned long long f2) { return f1 < f2; });
+        if (pivotInd > 1) {
+            dataLaunch <unsigned long long> newLaunch(launch.array, pivotInd);
+            launches.Push(newLaunch);
+        }
+        if (pivotInd < launch.size) {
+            dataLaunch <unsigned long long> newLaunch(launch.array + pivotInd + 1, launch.size - (pivotInd + 1));
+            launches.Push(newLaunch);
+        }
     }
 }
 
@@ -79,7 +142,7 @@ void run(std::istream &input, std::ostream &output) {
     input >> n; 
     unsigned long long* a = new unsigned long long[n];
     for (int i = 0; i < n; ++i) input >> a[i];
-    queueSort(a, n);
+    quickSort(a, n);
     for (int i = 0; i < n; ++i) output << a[i] << " ";
     delete[] a;
 }
