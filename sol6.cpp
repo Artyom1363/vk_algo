@@ -26,8 +26,9 @@
 #include <cstring>
 #include <math.h>
 
-int getMid(int* a, int i1, int i2, int i3) {
-    int *array = new int[3];
+template<class T>
+T getMid(T* a, int i1, int i2, int i3) {
+    T *array = new T[3];
     array[0] = a[i1];
     array[1] = a[i2];
     array[2] = a[i3];
@@ -42,16 +43,16 @@ int getMid(int* a, int i1, int i2, int i3) {
     return indexes[1];
 }
 
-int partition(int* array, int size) {
+template <class T>
+T partition(T* array, int size) {
     if (size < 1) {
         return 0;
     }
     int ind = getMid(array, 0, size / 2, size - 1);
-    // std::cout << "ind: " << ind << std::endl;
     std::swap(array[ind], array[size - 1]);
     int i = 0;
     for (int j = 0; j < size - 1; ++j) {
-        if (array[j] <= array[size - 1]) {
+        if (array[j] < array[size - 1]) {
             std::swap(array[j], array[i++]);
         }
     }
@@ -59,14 +60,14 @@ int partition(int* array, int size) {
     return i;
 }
 
-int findKStat(int* array, int size, int k) {
-    int* arrCopy = new int[size];
-    memcpy(arrCopy, array, sizeof(int) * size);
+template <class T>
+T findKStat(T* array, int size, int k) {
+    T* arrCopy = new T[size];
+    T* copyPointer = arrCopy;
+    memcpy(arrCopy, array, sizeof(T) * size);
     int pivotInd = 0;
-    do {
+    while (true) {
         pivotInd = partition(arrCopy, size);
-        // std::cout << "pivot: " << pivotInd << std::endl;
-        // std::cout << "k: " << k << std::endl;
         if (pivotInd < k) {
             arrCopy += pivotInd + 1;
             size -= pivotInd + 1;
@@ -76,9 +77,9 @@ int findKStat(int* array, int size, int k) {
         } else {
             break;
         }
-    } while (true);
+    }
     int res = arrCopy[pivotInd];
-    // delete[] arrCopy;
+    delete[] copyPointer;
     return res;
 }
 
@@ -90,7 +91,6 @@ void run(std::istream &input, std::ostream &output) {
     int k1 = n / 10;
     int k2 = n / 2;
     int k3 = ceil((n * 9) / 10);
-    // std::cout << "k3: " << k3 << std::endl;
     output << findKStat(a, n, k1) << "\n" << findKStat(a, n, k2) << "\n";
     output << findKStat(a, n, k3);
     delete[] a;
