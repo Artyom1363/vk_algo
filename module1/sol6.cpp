@@ -42,9 +42,14 @@ T getMid(T* a, int i1, int i2, int i3) {
     delete[] array;
     return indexes[1];
 }
+template<class T>
+class IsLess {
+public:
+	bool operator()( const T& l, const T& r ) { return l < r; }
+};
 
-template <class T>
-T partition(T* array, int size) {
+template <class T, class Compare = IsLess<T> >
+T partition(T* array, int size, Compare cmp = IsLess<T>()) {
     if (size < 1) {
         return 0;
     }
@@ -52,7 +57,7 @@ T partition(T* array, int size) {
     std::swap(array[ind], array[size - 1]);
     int i = 0;
     for (int j = 0; j < size - 1; ++j) {
-        if (array[j] < array[size - 1]) {
+        if (cmp(array[j], array[size - 1])) {
             std::swap(array[j], array[i++]);
         }
     }
@@ -60,14 +65,14 @@ T partition(T* array, int size) {
     return i;
 }
 
-template <class T>
-T findKStat(T* array, int size, int k) {
+template <class T, class Compare = IsLess<T> >
+T findKStat(T* array, int size, int k, Compare cmp = IsLess<T>()) {
     T* arrCopy = new T[size];
     T* copyPointer = arrCopy;
     memcpy(arrCopy, array, sizeof(T) * size);
     int pivotInd = 0;
     while (true) {
-        pivotInd = partition(arrCopy, size);
+        pivotInd = partition(arrCopy, size, cmp);
         if (pivotInd < k) {
             arrCopy += pivotInd + 1;
             size -= pivotInd + 1;
