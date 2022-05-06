@@ -24,10 +24,10 @@ class OutBitStream {
 public:
 	OutBitStream() : bitsCount( 0 ) {}
 
-	void WriteBit( unsigned char bit );
+	void WriteBit( bool bit );
 	void WriteByte( unsigned char byte );
 
-	const vector<unsigned char>& GetBuffer() const { return buffer; }
+	const vector<unsigned char> GetBuffer() const { return buffer; }
     const unsigned int GetFreeBits() const { return (buffer.size() * 8) - bitsCount; }
 
 private:
@@ -35,12 +35,12 @@ private:
 	int bitsCount;
 };
 
-void OutBitStream::WriteBit( unsigned char bit ) {
+void OutBitStream::WriteBit( bool bit ) {
 	if( bitsCount % 8 == 0 ) {
 		buffer.push_back( 0 );
 	}
 
-	if( bit != 0 ) {
+	if( bit ) {
 		int bitPos = bitsCount % 8;
 		buffer[bitsCount / 8] |= 1 << bitPos;
 	}
@@ -60,6 +60,59 @@ void OutBitStream::WriteByte( unsigned char byte ) {
 	bitsCount += 8;
 }
 
+void ShowSym(byte sym) {
+    for (int i = 0; i < 8; ++i) {
+        cout << ((sym & (1 << i)) ? "1" : "0");
+    }
+}
+
+class Packer {
+private:
+    struct ServiceInfo {
+        byte sizeOfServiceInfo; // in bytes
+        byte freeBitsAfterInfo;
+        byte freeBits;
+        vector <byte> createVector() {
+            vector <byte> ans;
+            ans.push_back(sizeOfServiceInfo);
+            ans.push_back(freeBitsAfterInfo);
+            ans.push_back(freeBits);
+            return ans;
+        }
+    };
+    vector <byte> packedInfo;
+
+    void AddVectorToAns(vector <byte>& vect) {
+        for (auto elem : vect) {
+            packedInfo.push_back(elem);
+        }
+    }
+public:
+    Packer() {}
+
+    vector <byte> Pack(OutBitStream& table, OutBitStream& info) {
+        ServiceInfo servInfo;
+        vector <byte> tableInfo = table.GetBuffer();
+        servInfo.sizeOfServiceInfo = tableInfo.size();
+        servInfo.freeBitsAfterInfo = table.GetFreeBits();
+        servInfo.freeBits = info.GetFreeBits();
+        vector <byte> servInfoVect = servInfo.createVector();
+        AddVectorToAns( servInfoVect );
+        AddVectorToAns( tableInfo );
+        vector <byte> infoBuffer = info.GetBuffer();
+        AddVectorToAns( infoBuffer );
+        return packedInfo;
+    }
+
+    void ShowPacked(bool byBytes = true) {
+        for (auto sym : packedInfo) {
+            ShowSym(sym);
+            if (byBytes) {
+                cout << " ";
+            }
+        }
+    }
+};
 
 class HuffmanTree {
 public:
@@ -73,6 +126,17 @@ public:
         BuildTreeByPQ();
     }
     void ShowTree();
+
+    vector <byte> PackInfo() {
+        OutBitStream table = SmartPackTree();
+        // table.WriteBit(true);
+        OutBitStream info;
+        info.WriteBit(true);
+        Packer packer;
+        vector <byte> packed(packer.Pack(table, info));
+        packer.ShowPacked();
+        return packed;
+    }
 
 private:
     struct Node {
@@ -130,6 +194,24 @@ private:
         }
         return;
     }
+    void dfsSmartPacker(Node* node, OutBitStream& output) {
+        if (node->isList) {
+            output.WriteBit(1);
+            output.WriteByte(node->sym);
+        } else {
+            dfsSmartPacker(node->left, output);
+            dfsSmartPacker(node->right, output);
+
+            output.WriteBit(0);
+        }
+        return;
+    }
+    OutBitStream SmartPackTree() {
+        OutBitStream output;
+        Node* root = pq.top();
+        dfsSmartPacker(root, output);
+        return output;
+    }
 };
 void HuffmanTree::ShowTree() {
     Node* root = pq.top();
@@ -154,6 +236,7 @@ void Encode(IInputStream& original, IOutputStream& compressed) {
     HuffmanTree ht(input);
     ht.BuildTree();
     ht.ShowTree();
+    ht.PackInfo();
     // for (auto sym : writer.GetBuffer()) {
     //     compressed.Write(sym);
     // }
@@ -169,6 +252,8 @@ void Decode(IInputStream& compressed, IOutputStream& original) {
 int main() {
     vector <byte> inpVector;
     string s = "aaaaaabccccasdf";
+    s = "abc";
+    // cout << (int)'a' << endl;
     for (auto sym : s) {
         inpVector.push_back(sym);
     }
