@@ -13,6 +13,8 @@ using std::endl;
 using std::cout;
 using std::string;
 
+const unsigned int TIMES_CODING = 2;
+
 template <class T>
 void printVector(const vector <T>& vect) {
     for (auto& elem : vect) {
@@ -70,6 +72,7 @@ void OutBitStream::WriteByte( unsigned char byte ) {
 class InpBitStream {
 public:
 	InpBitStream(vector <byte> bytes) : buffer(bytes), bitsRead(0) {}
+    InpBitStream() {}
 
 	bool ReadBit();
 	byte ReadByte();
@@ -92,6 +95,7 @@ bool InpBitStream::ReadBit() {
 
 byte InpBitStream::ReadByte() {
     assert(isNotEnd());
+    assert(bitsRead + 8 <= buffer.size() * 8);
     byte ans = 0;
     unsigned int offset = bitsRead % 8;
     unsigned int alreadyRead = 8 - offset;
@@ -107,6 +111,7 @@ struct ServiceInfo {
     unsigned int sizeOfServiceInfo; // in bytes
     byte freeBitsAfterInfo;
     byte freeBits;
+    unsigned int dataBitsCount;
     vector <byte> createVector() {
         vector <byte> ans;
         byte tmp = 0;
@@ -124,6 +129,10 @@ struct ServiceInfo {
         sizeOfServiceInfo |= (second << 8);
         freeBitsAfterInfo = inpBitStream.ReadByte();
         freeBits = inpBitStream.ReadByte();
+        dataBitsCount = inpBitStream.GetSize() * 8 - sizeOfServiceInfo * 8 - freeBits - 32;
+    }
+    unsigned int GetDataBitsCount() {
+        return dataBitsCount;
     }
     void ShowInfo() {
         cout << "SHOW SERVICE INFO\n";
@@ -179,14 +188,71 @@ public:
             freqTable[word] += 1;
         }
     }
-    HuffmanTree(InpBitStream inpStream) {
+    HuffmanTree(InpBitStream _inpStream) : inpStream(_inpStream) {
         ServiceInfo servInfo(inpStream);
-        servInfo.ShowInfo();
+        maxBits = servInfo.GetDataBitsCount();
+        unsigned int tableSizeBits = servInfo.sizeOfServiceInfo * 8 - servInfo.freeBitsAfterInfo;
+        RecoveryTree(tableSizeBits, inpStream);
+        for (int i = 0; i < servInfo.freeBitsAfterInfo; ++i) inpStream.ReadBit();
+        // ShowTree();
+        // servInfo.ShowInfo();
     }
+
+    void RecoveryTree(unsigned int tableSizeBits, InpBitStream& inpStream) {
+        vector <Node*> st;
+        unsigned int bitRead = 0;
+
+        while (bitRead < tableSizeBits) {
+            bool type = inpStream.ReadBit();
+            ++bitRead;
+            if (type) {
+                byte sym = inpStream.ReadByte();
+                Node* newNode = new Node(sym);
+                st.push_back(newNode);
+                bitRead += 8;
+            } else {
+                Node* first = st.back();
+                st.pop_back();
+                Node* second = st.back();
+                st.pop_back();
+
+                Node* newNode = new Node(second, first);
+                st.push_back(newNode);
+            }
+        }
+        assert(st.size() == 1);
+        root = st.back();
+    }
+
+    vector <byte> Unpack(bool debug = false) {
+        vector <byte> ans;
+        unsigned int bitsCounter = 0;
+        // cout << "maxBits: " << maxBits << endl;
+        while (bitsCounter < maxBits) {
+            Node* node = root;
+            while (! (node->isList)) {
+                bool bit = inpStream.ReadBit();
+                ++bitsCounter;
+                node = (bit ? node->right : node->left);
+            }
+            ans.push_back(node->sym);
+        }
+        if (debug) {
+            cout << "DEBUG: UnArchived info:\n";
+            for (auto sym : ans) {
+                cout << sym;
+            }
+            cout << "\nend of UnArchived info " << endl;
+        }
+        
+        return ans;
+    }
+
     void BuildTree() {
         initPriorityQueue();
         BuildTreeByPQ();
     }
+
     void ShowTree();
 
     vector <byte> PackInfo() {
@@ -201,7 +267,7 @@ public:
         // cout << endl;
         Packer packer;
         vector <byte> packed(packer.Pack(table, info));
-        packer.ShowPacked();
+        // packer.ShowPacked();
         return packed;
     }
 
@@ -215,6 +281,7 @@ private:
         Node(byte _sym) : sym(_sym), left(nullptr), right(nullptr), freq(0), isList(true) {}
         Node(byte _sym, unsigned int _freq) : sym(_sym), left(nullptr), right(nullptr), freq(_freq), isList(true) {}
         Node(unsigned int _freq, Node* _left, Node* _right) : left(_left), right(_right), freq(_freq), isList(false) {}
+        Node(Node* _left, Node* _right) : left(_left), right(_right), freq(0), isList(false) {}
     };
     class isGreater {
     public:
@@ -222,11 +289,13 @@ private:
             return (left->freq) > (right->freq);
         }
     };
+    InpBitStream inpStream;
     map <byte, unsigned int> freqTable;
     priority_queue <Node*, vector <Node*>, isGreater> pq;
     vector <byte> baseInfo;
     map < byte, vector <unsigned int> > codes;
     Node* root;
+    unsigned int maxBits;
 
     void initPriorityQueue() {
         for (auto symWithFreq : freqTable) {
@@ -246,6 +315,7 @@ private:
             Node* newNode = new Node(newFreq, node1, node2);
             pq.push(newNode);
         }
+        root = pq.top();
     }
     
     void dfs(Node* node, vector <unsigned int> &code, bool print = false) {
@@ -283,13 +353,11 @@ private:
     }
     OutBitStream SmartPackTree() {
         OutBitStream output;
-        Node* root = pq.top();
         dfsSmartPacker(root, output);
         return output;
     }
 
     OutBitStream ArchiveInfo() {
-        Node* root = pq.top();
         vector <unsigned int> st;
         OutBitStream archive;
 
@@ -305,7 +373,7 @@ private:
     }
 };
 void HuffmanTree::ShowTree() {
-    Node* root = pq.top();
+    // Node* root = pq.top();
     vector <unsigned int> code;
     dfs(root, code, true);
 }
@@ -319,15 +387,18 @@ static void copyStream(IInputStream& input, IOutputStream& output) {
 
 void Encode(IInputStream& original, IOutputStream& compressed) {
     byte value;
-    vector <byte> input;
+    vector <byte> buffer;
     while(original.Read(value)) {
-        input.push_back(value);
+        buffer.push_back(value);
     }
-    HuffmanTree ht(input);
-    ht.BuildTree();
-    ht.ShowTree();
-    vector <byte> packed = ht.PackInfo();
-    for (auto sym : packed) {
+
+    for (int i = 0; i < TIMES_CODING; ++i) {
+        HuffmanTree ht(buffer);
+        ht.BuildTree();
+        buffer = ht.PackInfo();
+    }
+
+    for (auto sym : buffer) {
         compressed.Write(sym);
     }
     // for (auto sym : writer.GetBuffer()) {
@@ -338,16 +409,23 @@ void Encode(IInputStream& original, IOutputStream& compressed) {
 
 void Decode(IInputStream& compressed, IOutputStream& original) {
     byte value;
-    vector <byte> input;
-    cout << "\ndeconding: \n";
+    vector <byte> buffer;
+    // cout << "\ndeconding: \n";
     while(compressed.Read(value)) {
-        ShowSym(value);
-        cout << " ";
-        input.push_back(value);
+        // ShowSym(value);
+        // cout << " ";
+        buffer.push_back(value);
     }
-    cout << "\nend of reading\n";
-    InpBitStream reader(input);
-    HuffmanTree ht(reader);
+    for (int i = 0; i < TIMES_CODING; ++i) {
+        InpBitStream reader(buffer);
+        HuffmanTree ht(reader);
+        buffer = ht.Unpack();
+    }
+    // cout << "\nend of reading\n";
+    
+    for (auto sym : buffer) {
+        original.Write(sym);
+    }
     // ht.BuildTree();
     // ht.ShowTree();
     // ht.PackInfo();
@@ -358,8 +436,8 @@ void Decode(IInputStream& compressed, IOutputStream& original) {
 
 int main() {
     vector <byte> inpVector;
-    string s = "aaaaaabccccasdf";
-    s = "abc";
+    string s = "aaaaaabccccasdfajf3j34";
+    // s = "abc";
     // cout << (int)'a' << endl;
     for (auto sym : s) {
         inpVector.push_back(sym);
@@ -370,9 +448,12 @@ int main() {
     vector <byte> outVector;
     COutputStream out(outVector);
     Encode(inp, out);
-    for (auto sym : outVector) {
-        cout << "sym: " << sym << " \n";
-    }
+    // cout << endl;
+    // for (auto sym : outVector) {
+    //     cout << "sym: ";
+    //     ShowSym(sym);
+    //     cout << " \n";
+    // }
 
 
     CInputStream lastOut(outVector);
@@ -380,7 +461,7 @@ int main() {
     COutputStream outNew(end);
     Decode(lastOut, outNew);
 
-    out.ShowData();
+    // out.ShowData();
 
 
 
