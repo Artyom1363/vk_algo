@@ -13,6 +13,8 @@ using std::endl;
 using std::cout;
 using std::string;
 
+const bool DEBUG = false;
+
 const unsigned int TIMES_CODING = 2;
 
 template <class T>
@@ -213,8 +215,15 @@ public:
             } else {
                 Node* first = st.back();
                 st.pop_back();
-                Node* second = st.back();
-                st.pop_back();
+                // assert(st.size() != 0);
+                Node* second;
+                if (st.size() == 0) {
+                    second = nullptr;
+                    std::swap(first, second);
+                } else {
+                    second = st.back();
+                    st.pop_back();
+                }
 
                 Node* newNode = new Node(second, first);
                 st.push_back(newNode);
@@ -225,18 +234,25 @@ public:
     }
 
     vector <byte> Unpack(bool debug = false) {
+        // cout << "Unpack" << endl;
         vector <byte> ans;
         unsigned int bitsCounter = 0;
         // cout << "maxBits: " << maxBits << endl;
+        if (DEBUG) {
+            cout << "RECOVERED TREE:\n";
+            ShowTree();
+        }
         while (bitsCounter < maxBits) {
             Node* node = root;
-            while (! (node->isList)) {
+            assert(node != nullptr);
+            while (!(node->isList)) {
                 bool bit = inpStream.ReadBit();
                 ++bitsCounter;
                 node = (bit ? node->right : node->left);
             }
             ans.push_back(node->sym);
         }
+        // cout << "end of unpack" << endl;
         if (debug) {
             cout << "DEBUG: UnArchived info:\n";
             for (auto sym : ans) {
@@ -258,6 +274,7 @@ public:
     vector <byte> PackInfo() {
         OutBitStream table = SmartPackTree();
         // table.WriteBit(true);
+        // cout << "PackInfo" << endl;
         OutBitStream info = ArchiveInfo();
         // vector <byte> archivedInfo = info.GetBuffer();
         // cout << "DEBUG: archived info:\n";
@@ -306,6 +323,11 @@ private:
         }
     }
     void BuildTreeByPQ() {
+        if (pq.size() == 1) {
+            Node* node = pq.top();
+            root = new Node(node->freq, node, nullptr);
+            return;
+        }
         while (pq.size() > 1) {
             Node* node1 = pq.top();
             pq.pop();
@@ -319,6 +341,7 @@ private:
     }
     
     void dfs(Node* node, vector <unsigned int> &code, bool print = false) {
+        if (node == nullptr) return;
         if (node->isList) {
             if (print) {
                 cout << node->sym << " freq: " << node->freq << ": ";
@@ -340,6 +363,7 @@ private:
         return;
     }
     void dfsSmartPacker(Node* node, OutBitStream& output) {
+        if (node == nullptr) return;
         if (node->isList) {
             output.WriteBit(1);
             output.WriteByte(node->sym);
@@ -396,7 +420,18 @@ void Encode(IInputStream& original, IOutputStream& compressed) {
         HuffmanTree ht(buffer);
         ht.BuildTree();
         buffer = ht.PackInfo();
+        if (DEBUG) ht.ShowTree();
     }
+    // vector <byte> archivedInfo = info.GetBuffer();
+    if (DEBUG) {
+        cout << "DEBUG: archived info:\n";
+        for (auto sym : buffer) {
+            ShowSym(sym);
+            cout << " ";
+        }
+        cout << endl;
+    }
+
 
     for (auto sym : buffer) {
         compressed.Write(sym);
@@ -410,22 +445,20 @@ void Encode(IInputStream& original, IOutputStream& compressed) {
 void Decode(IInputStream& compressed, IOutputStream& original) {
     byte value;
     vector <byte> buffer;
-    // cout << "\ndeconding: \n";
     while(compressed.Read(value)) {
-        // ShowSym(value);
-        // cout << " ";
         buffer.push_back(value);
     }
     for (int i = 0; i < TIMES_CODING; ++i) {
         InpBitStream reader(buffer);
         HuffmanTree ht(reader);
-        buffer = ht.Unpack();
+        buffer = ht.Unpack(DEBUG);
     }
     // cout << "\nend of reading\n";
     
     for (auto sym : buffer) {
         original.Write(sym);
     }
+
     // ht.BuildTree();
     // ht.ShowTree();
     // ht.PackInfo();
@@ -437,8 +470,8 @@ void Decode(IInputStream& compressed, IOutputStream& original) {
 int main() {
     vector <byte> inpVector;
     string s = "aaaaaabccccasdfajf3j34";
-    // s = "abc";
-    // cout << (int)'a' << endl;
+    s = "a";
+    s = "abc";
     for (auto sym : s) {
         inpVector.push_back(sym);
     }
@@ -448,12 +481,6 @@ int main() {
     vector <byte> outVector;
     COutputStream out(outVector);
     Encode(inp, out);
-    // cout << endl;
-    // for (auto sym : outVector) {
-    //     cout << "sym: ";
-    //     ShowSym(sym);
-    //     cout << " \n";
-    // }
 
 
     CInputStream lastOut(outVector);
