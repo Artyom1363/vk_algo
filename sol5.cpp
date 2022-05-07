@@ -190,6 +190,18 @@ public:
             freqTable[word] += 1;
         }
     }
+    ~HuffmanTree() {
+        vector <Node*> st;
+        st.push_back(root);
+        while (st.size() > 0) {
+            Node* node = st.back();
+            st.pop_back();
+            if (node == nullptr) continue;
+            st.push_back(node->left);
+            st.push_back(node->right);
+            delete node;
+        }
+    }
     HuffmanTree(InpBitStream _inpStream) : inpStream(_inpStream) {
         ServiceInfo servInfo(inpStream);
         maxBits = servInfo.GetDataBitsCount();
