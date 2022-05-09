@@ -1,3 +1,13 @@
+/*
+4_2. Порядковые статистики. Дано число N и N строк. 
+Каждая строка содержит команду добавления или удаления натуральных чисел, 
+а также запрос на получение k-ой порядковой статистики. 
+Команда добавления числа A задается положительным числом A, 
+команда удаления числа A задается отрицательным числом “-A”.
+Запрос на получение k-ой порядковой статистики задается числом k. 
+Требования: скорость выполнения запроса - O(log n).
+*/
+
 #include <iostream>
 #include <cassert>
 
@@ -5,7 +15,16 @@ using std::cin;
 using std::cout;
 using std::endl;
 
-template <typename T>
+template<class T>
+class IsLess {
+public:
+	bool operator()( const T& l, const T& r ) { 
+        return l < r;
+    }
+};
+
+
+template <class T, class Compare = IsLess<T> >
 class AvlTree
 {
     struct Node
@@ -19,7 +38,7 @@ class AvlTree
     };
     
 public:
-    AvlTree() : root(nullptr) {}
+    AvlTree(Compare cmp) : cmp(cmp), root(nullptr) {}
     
     ~AvlTree() { destroyTree(root); }
 
@@ -33,8 +52,7 @@ public:
     
     bool Has(const T &data) {
         Node *tmp = root;
-        while (tmp)
-        {
+        while (tmp) {
             if (tmp->data == data) {
                 return true;
             } else if (tmp->data < data) {
@@ -52,6 +70,7 @@ public:
     
 private:
     Node *root;
+    Compare cmp;
 
     unsigned int getCount(Node *node) {
         return node ? node->count : 0;
@@ -85,13 +104,11 @@ private:
     Node* deleteInternal(Node *node, const T &data) {
         if (!node)
             return nullptr;
-        if (node->data < data) {
+        if (cmp(node->data, data)) {
             node->right = deleteInternal(node->right, data);
-        }
-        else if (node->data > data) {
+        } else if (cmp(data, node->data)) {
             node->left = deleteInternal(node->left, data);
-        }
-        else {
+        } else {
             Node *left = node->left;
             Node *right = node->right;
             
@@ -107,32 +124,61 @@ private:
     
 
     Node* setMinInsteadOf(Node* left, Node* right) {
-        Node *min = findMin(right);
-        min->right = removeMin(right);
-        min->left = left;
+        int delta = getHeight(right) - getHeight(left);
+        std::pair <Node*, Node*> nodes;
+        Node* min;
+        
+        if (delta == -1) {
+            nodes = findAndRemoveMax(left);
+            min = nodes.second;
+            min->right = right;
+            min->left = nodes.first;
+        } else {
+            nodes = findAndRemoveMin(right);
+            min = nodes.second;
+            min->right = nodes.first;
+            min->left = left;
+        }
+        
         return doBalance(min);
     }
 
-    Node* findMin(Node *node) {
-        while (node->left)
-            node = node->left;
-        return node;
+    std::pair <Node*, Node*> findAndRemoveMin(Node* node) {
+        std::pair <Node*, Node*> nodes;
+        if (!node->left) {
+            nodes.first = node->right;
+            nodes.second = node;
+            return nodes;
+        }
+        nodes = findAndRemoveMin(node->left);
+        node->left = nodes.first;
+        node = doBalance(node);
+        nodes.first = node;
+        return nodes;
     }
-    
-    Node* removeMin(Node *node) {
-        if (!node->left)
-            return node->right;
-        node->left = removeMin(node->left);
-        return doBalance(node);
+
+    std::pair <Node*, Node*> findAndRemoveMax(Node* node) {
+        std::pair <Node*, Node*> nodes;
+        if (!node->right) {
+            nodes.first = node->left;
+            nodes.second = node;
+            return nodes;
+        }
+        nodes = findAndRemoveMax(node->right);
+        node->right = nodes.first;
+        node = doBalance(node);
+        nodes.first = node;
+        return nodes;
     }
+
     
     Node* addInternal(Node *node, const T &data) {
         if (!node)
             return new Node(data);
-        if (node->data <= data) {
-            node->right = addInternal(node->right, data);
-        } else {
+        if (cmp(data, node->data)) {
             node->left = addInternal(node->left, data);
+        } else {
+            node->right = addInternal(node->right, data);
         }
         return doBalance(node);
     }
@@ -190,7 +236,8 @@ private:
 };
 
 int main(int argc, const char * argv[]) {
-    AvlTree <int> avlTree;
+    IsLess <int> isLess;
+    AvlTree <int> avlTree(isLess);
     unsigned int n;
     cin >> n;
     for (int i = 0, elem, k; i < n; ++i) {
