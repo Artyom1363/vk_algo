@@ -29,48 +29,60 @@ using std::optional;
 using std::set;
 using std::pair;
 
+template <class T>
 class Dijkstra {
 public:
     Dijkstra() {}
 
-    void AddEdge(int from, int to, int weight = 1) {
-        edges[from].push_back({to, weight});
-    }
+    void AddDirectedEdge(const T &from, const T& to, unsigned int weight);
 
-    void FindDists(int from) {
-        set <pair<int, int>> tmpDists;
-        tmpDists.insert({0, from});
-        unordered_set <int> used;
-        while (tmpDists.size()) {
-            pair <int, int> minVertex = *(tmpDists.begin());
-            used.insert(minVertex.second);
-            tmpDists.erase(tmpDists.begin());
-            for (auto &edge : edges[minVertex.second]) {
-                int newVertex = edge.first;
-                optional <int> lastDistToV = dists[newVertex];
-                int nowDistToV = minVertex.first + edge.second;
-                if (!used.count(newVertex) && (!lastDistToV || nowDistToV < lastDistToV)) {
-                    if (lastDistToV) {
-                        pair <int, int> lastEdge = {*lastDistToV, newVertex};
-                        tmpDists.erase(tmpDists.find(lastEdge));
-                    }
-                    dists[newVertex] = nowDistToV;
-                    tmpDists.insert({nowDistToV, newVertex});
-                }
-            }
-        }
-    }
-    optional<int> GetMinDistTo(int to) {
-        return dists[to];
-    }
+    void FindDists(const T& from);
+
+    optional<unsigned int> GetDistTo(const T& to);
+
 private:
-    unordered_map <int, vector <pair <int, int>>> edges;
-    unordered_map <int, optional <int>> dists;
+    unordered_map <T, vector <pair <T, int>>> edges;
+    unordered_map <T, optional <unsigned int>> dists;
 
 };
 
+template <class T>
+void Dijkstra<T>::AddDirectedEdge(const T &from, const T& to, unsigned int weight) {
+    edges[from].push_back({to, weight});
+}
+
+template <class T>
+void Dijkstra<T>::FindDists(const T& from) {
+    set <pair<int, T>> tmpDists;
+    tmpDists.insert({0, from});
+    unordered_set <int> used;
+    while (tmpDists.size()) {
+        pair <int, T> minVertex = *(tmpDists.begin());
+        used.insert(minVertex.second);
+        tmpDists.erase(tmpDists.begin());
+        for (auto &edge : edges[minVertex.second]) {
+            T newVertex = edge.first;
+            optional <unsigned int> lastDistToV = dists[newVertex];
+            int nowDistToV = minVertex.first + edge.second;
+            if (!used.count(newVertex) && (!lastDistToV || nowDistToV < lastDistToV)) {
+                if (lastDistToV) {
+                    pair <int, T> lastEdge = {*lastDistToV, newVertex};
+                    tmpDists.erase(tmpDists.find(lastEdge));
+                }
+                dists[newVertex] = nowDistToV;
+                tmpDists.insert({nowDistToV, newVertex});
+            }
+        }
+    }
+}
+
+template <class T>
+optional<unsigned int> Dijkstra<T>::GetDistTo(const T& to) {
+    return dists[to];
+}
+
 int main() {
-    Dijkstra dijkstra;
+    Dijkstra <unsigned int> dijkstra;
     int n;
     int m;
     int from;
@@ -83,7 +95,7 @@ int main() {
     }
     cin >> from >> to;
     dijkstra.FindDists(from);
-    optional <int> dist = dijkstra.GetMinDistTo(to);
+    optional <int> dist = dijkstra.GetDistTo(to);
     if (dist) {
         cout << *dist << endl;
     }
