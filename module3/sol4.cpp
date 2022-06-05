@@ -1,3 +1,19 @@
+/*
+Написать алгоритм для решения игры в “пятнашки”. Решением задачи является приведение к виду:
+[ 1  2  3  4 ]
+[ 5  6  7  8 ]
+[ 9  10 11 12] 
+[ 13 14 15 0 ]
+где 0 задает пустую ячейку.
+Достаточно найти хотя бы какое-то решение. Число перемещений костяшек не обязано быть минимальным.
+Формат входных данных
+Начальная расстановка.
+Формат выходных данных
+Если решение существует, то в первой строке выходного файла выведите минимальное число перемещений костяшек, которое нужно сделать, чтобы достичь выигрышной конфигурации, а во второй строке выведите соответствующую последовательность ходов: L означает, что костяшка сдвинулась влево, R – вправо, U – вверх, D – вниз. Если таких последовательностей несколько, то выведите любую из них. Если же выигрышная конфигурация недостижима, то выведите в выходной файл одно число −1.
+
+*/
+
+
 #include <iostream>
 #include <array>
 #include <cassert>
@@ -24,7 +40,7 @@ const std::array<char, FieldSize> finishField = {1, 2, 3, 4,
                                                  13, 14, 15, 0};
 
 int COUNTER = 0;
-int ITER_NUMBER = 10000;
+int ITER_NUMBER = 1000000;
 
 class GameState {
 public:
@@ -49,27 +65,15 @@ public:
 
     bool operator==(const GameState &other) const;
 
-    bool TestCase1() {
-        if (field[0] == 1 && 
-            field[1] == 2 && 
-            field[2] == 3 && 
-            field[7] == 4 && 
-            field[6] == 0) {
-            cout << "DEBUG: TEST CASE1";
-            return true;
+    size_t SumManhatDist() const {
+        size_t dist = 0;
+        for (int i = 0; i < FieldSize; ++i) {
+            if (field[i] && field[i] != i + 1) {
+                dist += FindManhatDist(i, field[i] - 1);
+            }
         }
+        return dist;
     }
-    // GameState FillTest1() {
-    //     MoveRight();
-    //     MoveDown();
-    //     MoveLeft();
-    //     MoveLeft();
-    //     MoveUp();
-    //     MoveRight();
-    //     MoveDown();
-    //     MoveRight();
-    //     MoveUp();
-    // }
     
 private:
     size_t getInvCount() const {
@@ -107,137 +111,8 @@ private:
         return abs(x1 - x2) + abs(y1 - y2);
     }
 
-    size_t PosFirstSecondSevenInMoreEight() {
-        for (int i = 8; i < FieldSize; ++i) {
-            if (field[i] < 8) {
-                return i;
-            }
-        }
-    }
 
-    size_t CalcDistByAbs() const {
-        size_t calcDist = getInvCount();
-        size_t first = FindFirstWrong();
-        if (first <= 4) {
-            calcDist += (1 << 30);
-            for (int i = 0; i < FieldSize - 1; i++) {
-                if (field[i] == 1 || field[i] == 2 || field[i] == 3) {
-                    // cout << calcDist << endl;
-                    calcDist += (1 << (FieldSize - i)) * FindManhatDist(i, field[i] - 1);
-                    calcDist += 10 * FindManhatDist(i, emptyPos);
-                }
-                if (field[i] == 4) {
-                    calcDist += (1 << (FieldSize - i)) * FindManhatDist(i, 7);
-                    calcDist += 10 * FindManhatDist(i, emptyPos);
-                }
-                if (!field[i]) {
-                    calcDist += (1 << (FieldSize - i)) * FindManhatDist(i, 6);
-                }
-            }
-            return calcDist;
-        } else {
-            cout << "first " << first << endl;
-            cout << "YES!!" << endl;
-            cout << *this << endl;
-            exit(0);
-        }
-        if (COUNTER == ITER_NUMBER) {
-            cout << *this << endl;
-            cout << "first" << first << endl;
-        }
-
-
-
-
-        ++COUNTER;
-        if (first == 1) {
-            // cout << 1 << " ";
-            cout << first << endl;
-            size_t firstWrongPos = GetPosOfElem(first);
-            cout << firstWrongPos << endl;
-            calcDist += (1 << 25) * FindManhatDist(firstWrongPos, 0);
-            calcDist += (1 << 20) * FindManhatDist(firstWrongPos, emptyPos);
-            return calcDist;
-        } else if (first == 2) {
-            // cout << 2 << " ";
-            size_t firstWrongPos = GetPosOfElem(first);
-            // cout << firstWrongPos << " ";
-            calcDist += (1 << 24) * FindManhatDist(firstWrongPos, 1);
-            calcDist += (1 << 20) * FindManhatDist(firstWrongPos, emptyPos);
-            return calcDist;
-        } else if (first == 3) {
-            // cout << 3 << " ";
-            size_t firstWrongPos = GetPosOfElem(first);
-            calcDist += (1 << 23) * FindManhatDist(firstWrongPos, 2);
-            calcDist += (1 << 20) * FindManhatDist(firstWrongPos, emptyPos);
-        } else if (first == 4) {
-            // cout << 4 << " ";
-            size_t firstWrongPos = GetPosOfElem(first);
-            calcDist += (1 << 22) * FindManhatDist(firstWrongPos, 7);
-            calcDist += (1 << 20) * FindManhatDist(firstWrongPos, emptyPos);
-        } else if (first == 5) {
-            // size_t firstWrongPos = GetPosOfElem(first);
-            calcDist += (1 << 21) * FindManhatDist(emptyPos, 6);
-        }
-
-            // for (int i = 0; i < 8; ++i) {
-            //     if (field[i] > 7) calcDist += (1 << 17);
-            // }
-            // ++COUNTER;
-            // if (COUNTER > 10000 && COUNTER < 10010) {
-            //     cout << "res: " << endl;
-            //     cout << *this << endl;
-            //     cout << "empty: " << (int)emptyPos << endl;
-            // }
-            // if (emptyPos < 8) calcDist += (1 << 15);
-            // for (int i = 8; i < FieldSize; ++i) {
-            //     if (field[i] < 8) {
-            //         calcDist += (1 << 19) * (i / sideSize - 1);
-            //     }
-            // }
-            // for (int i = 8; i < FieldSize; ++i) {
-            //     if (field[i] < 8) {
-            //         calcDist += (1 << 16) * FindManhatDist(i, emptyPos);
-            //         break;
-            //     }
-            // }
-        else {
-            exit(0);
-        }
-        // if (COUNTER == ITER_NUMBER) cout << "CalcDist: ";
-        // if (COUNTER == ITER_NUMBER) cout << first << " ";
-        if (!first) return 0;
-        size_t firstWrongPos = GetPosOfElem(first);
-        if (COUNTER == ITER_NUMBER) cout << firstWrongPos << " ";
-        if (COUNTER == ITER_NUMBER) cout << emptyPos << " ";
         
-        if (first <= 8) {
-            calcDist += (1 << 26);
-        }
-        if (COUNTER == ITER_NUMBER) cout << FindManhatDist(firstWrongPos, emptyPos) << " ";
-        if (COUNTER == ITER_NUMBER) cout << "here is state: " << GetEmptyPos() << "\n " << *this << endl;
-        size_t row = first / 4;
-        calcDist += FindManhatDist(firstWrongPos, emptyPos) * (1 << (FieldSize - row));
-        ++COUNTER;
-        // for (int i = 0; i < FieldSize - 1; i++) {
-        //     if (field[i]) {
-        //         // cout << calcDist << endl;
-        //         // calcDist += (1 << (FieldSize - i)) * abs(field[i] - (i + 1));
-        //         calcDist += abs(field[i] - (i + 1));
-        //     }
-        // }
-        size_t calcAbsDist = 0;
-        for (int i = 0; i < FieldSize - 1; i++) {
-            if (field[i]) {
-                // cout << calcDist << endl;
-                calcAbsDist += (1 << (FieldSize - i)) * FindManhatDist(i, field[i] - 1);
-            }
-        }
-        calcDist += calcAbsDist;
-
-        return calcDist;
-    }
-    
     std::array<char, FieldSize> field;
     char emptyPos;
     
@@ -269,14 +144,11 @@ GameState::GameState(const GameState &other) :
 
 bool GameState::IsSolvable() const {
     size_t invCount = getInvCount();
-    // cout << "invCount: " << invCount << endl;
     unsigned int numberOfStr = emptyPos / sideSize + 1;
-    // cout << "numberOfStr: " << numberOfStr << endl;
     return ((invCount + numberOfStr) % 2 == 0) ? true : false;
 }
 
 bool GameState::IsComplete() const {
-    // cout << "field: " << field << endl;
     return field == finishField;
 }
 
@@ -337,7 +209,7 @@ bool GameState::operator==(const GameState &other) const {
 }
 
 size_t GameState::CalcDist() const {
-    return CalcDistByAbs();
+    return SumManhatDist();
 }
 
 bool operator<(const GameState& l, const GameState& r) {
@@ -378,85 +250,53 @@ std::string GetSolution(const std::array<char, FieldSize> &field) {
     std::set<pair<size_t, GameState>> tmpDists;
     size_t distToStart = startState.CalcDist();
     tmpDists.insert({distToStart, startState});
-    // int maxIters = 10000;
     int cnt = 0;
     while (tmpDists.size()) {
         pair <size_t, GameState> curVertex = *(tmpDists.begin());
         GameState state = curVertex.second;
         tmpDists.erase(tmpDists.begin());
         ++cnt;
-        // cout << state << endl;
-        // cout << "dist: " << state.CalcDist() << endl;
-        if (cnt == 1000) cout << state << endl;
-        if (cnt > 1000) break;
         
         if (state.IsComplete())
             break;
-        
-        if (state.TestCase1()) {
-            cout << state << endl;
-            exit(0);
-            // state = state.fillTest1();
-            // size_t distToNewState = newState.CalcDist();
-            // if (!visited.count(state)) {
-            //     visited[newState] = 'L';
-            //     tmpDists.insert({distToNewState, newState});
-            // }
-        }
 
         if (state.CanMoveLeft()) {
-            // cout << "CanMoveLeft" << endl;
             GameState newState = state.MoveLeft();
             size_t distToNewState = newState.CalcDist();
-            // cout << distToNewState << endl;
             if (!visited.count(newState)) {
                 visited[newState] = 'L';
                 tmpDists.insert({distToNewState, newState});
             }
         }
         if (state.CanMoveRight()) {
-            // cout << "CanMoveRight" << endl;
             GameState newState = state.MoveRight();
             size_t distToNewState = newState.CalcDist();
-            // cout << distToNewState << endl;
             if (!visited.count(newState)) {
                 visited[newState] = 'R';
                 tmpDists.insert({distToNewState, newState});
             }
         }
         if (state.CanMoveUp()) {
-            // cout << "CanMoveUp" << endl;
             GameState newState = state.MoveUp();
             size_t distToNewState = newState.CalcDist();
-            // cout << distToNewState << endl;
             if (!visited.count(newState)) {
                 visited[newState] = 'U';
                 tmpDists.insert({distToNewState, newState});
             }
         }
         if (state.CanMoveDown()) {
-            // cout << "Can Move Down" << endl;
             GameState newState = state.MoveDown();
             size_t distToNewState = newState.CalcDist();
-            // cout << distToNewState << endl;
             if (!visited.count(newState)) {
                 visited[newState] = 'D';
                 tmpDists.insert({distToNewState, newState});
             }
         }
-        // cout << "tmpDists in the end " << tmpDists.size() << endl;
     }
-    // cout << "cnt: " << cnt << endl;
     
     std::string path;
     GameState state(finishField);
-    
-    // std::cout << state << std::endl;
-    // cnt = 0;
-    // cout << "CAME TO REVERSE PATH" << endl;;
     while (visited[state] != 'S') {
-        // ++cnt;
-        // if (cnt > maxIters) break;
         char move = visited[state];
         switch (move) {
             case 'L': {
@@ -480,35 +320,38 @@ std::string GetSolution(const std::array<char, FieldSize> &field) {
                 break;
             }
         }
-        
-        // std::cout << state << std::endl;
     }
     
     std::reverse(path.begin(), path.end());
     return path;
 }
 
-int main(int argc, const char * argv[]) {
-    size_t a = -1;
-    cout << a << endl;
-    // GameState test(finishField);
-    // cout << test.CalcDistByAbs() << endl;
-    // cout << test.IsSolvable();
-    // array<char, FieldSize> field = {2, 3, 1, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0};
-    // array<char, FieldSize> field = {0, 1, 10, 13, 
-    //                                 15, 7, 11, 8,
-    //                                 9, 14, 6, 12,
-    //                                 3, 2, 5, 4};
-
-    // array<char, FieldSize> field = {1, 0, 10, 13, 
-    //                                 15, 7, 11, 8,
-    //                                 9, 14, 6, 12,
-    //                                 3, 2, 5, 4};
-    array<char, FieldSize> field = {15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 0, 3, 2, 4, 1};
+void run(std::istream &input, std::ostream &output) {
+    array<char, FieldSize> field;
+    for (int i = 0, val; i < FieldSize; ++i) {
+        input >> val;
+        field[i] = val;
+    }
+                                     
     string path = GetSolution(field);
-    cout << path.size() << endl << path << endl;
-    // calcDist += (1 << (FieldSize - i)) * FindManhatDist(i, 7);
-    // GameState gs(field);
-    // cout << gs.CalcDist() << endl;
+    if (path == "-1") cout << -1;
+    else output << path.size() << endl << path << endl;
+}
+
+void test() {
+    {   
+        array<char, FieldSize> field = {1, 2, 5, 4, 
+                                        3, 6, 7, 8, 
+                                        9, 10, 11, 12, 
+                                        13, 14, 15, 0};
+        GameState gs(field);
+        assert(gs.SumManhatDist() == 6);
+        cout << "test 1 finished" << endl;
+    }
+}
+
+
+int main(int argc, const char * argv[]) {
+    run(cin, cout);
     return 0;
 }
